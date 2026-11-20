@@ -21,7 +21,10 @@
     <div class="row2" style="align-items:end;margin-top:10px">
       <div>
         <label for="key">Пароль учителя</label>
-        <input type="password" id="key" placeholder="ваш пароль">
+        <div class="flex" style="gap:6px">
+          <input type="password" id="key" placeholder="ваш пароль" style="flex:1">
+          <button type="button" class="small" id="showKey" style="min-width:104px">показать</button>
+        </div>
       </div>
       <div><button class="primary" id="enter">Войти</button></div>
     </div>
@@ -175,6 +178,19 @@
     $('studentLink').value = location.origin + location.pathname.replace(/teacher\.html$/, '');
     loadAll();
   }
+  // Показать / скрыть пароль
+  var keyShown = false;
+  $('showKey').addEventListener('click', function () {
+    keyShown = !keyShown;
+    $('key').type = keyShown ? 'text' : 'password';
+    $('showKey').textContent = keyShown ? 'скрыть' : 'показать';
+  });
+
+  // Enter в поле пароля = нажать «Войти»
+  $('key').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); $('enter').click(); }
+  });
+
   $('enter').addEventListener('click', function () {
     var k = $('key').value.trim();
     if (!k) return ($('gateMsg').innerHTML = '<div class="err">Введите пароль</div>');
