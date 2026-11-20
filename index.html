@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14584a">
+<title>Домашнее задание</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <h1 id="pageTitle">Домашнее задание</h1>
+  <div class="sub" id="pageSub">Загрузка…</div>
+
+  <div id="notice"></div>
+  <div id="hw"></div>
+
+  <div class="card" id="submitCard" style="display:none">
+    <h2>Сдать работу</h2>
+    <div class="hint" style="margin-bottom:10px">
+      Впишите имя и фамилию так, как вас знает учитель. Если в задании есть упражнение —
+      сначала выполните его, потом нажмите «Сдать работу».
+    </div>
+
+    <label for="name">Ваше имя и фамилия</label>
+    <input type="text" id="name" autocomplete="name" placeholder="Например: Иванова Маша">
+
+    <label for="answer">Ваш ответ (текст, сочинение, ответы на вопросы)</label>
+    <textarea id="answer" placeholder="Напишите здесь…"></textarea>
+
+    <label for="file">Прикрепить файл — фото, скан, аудиозапись, документ (не обязательно)</label>
+    <input type="file" id="file" accept="image/*,audio/*,.pdf,.doc,.docx,.txt,.rtf">
+    <div class="hint">Размер до 6 МБ. С телефона можно сразу записать аудио или сфотографировать работу.</div>
+
+    <label for="score">Балл за интерактивное задание</label>
+    <input type="text" id="score" placeholder="например 18 / 24">
+    <div class="hint" id="scoreHint">Если вы выполняли интерактивное задание вверху страницы, балл подставится сам.</div>
+
+    <div class="flex" style="margin-top:16px">
+      <button class="primary" id="send">Сдать работу</button>
+      <span class="wait" id="sendStatus"></span>
+    </div>
+    <div id="result"></div>
+  </div>
+
+  <footer>
+    Если что-то не получается — напишите учителю в мессенджер.<br>
+    Страница работает и с телефона.
+  </footer>
+</div>
+
+<script src="config.js"></script>
+<script>
+(function () {
+  var CFG = window.HW_CONFIG || {api:'', title:'Домашнее задание', teacher:''};
+  var $ = function (id) { return document.getElementById(id); };
+  var HW = null;
+  var DEMO = {
+    id: 'demo', title: 'Spotlight 8 · unit 2 · phrasal verbs',
+    grade: '8 класс', lessonDate: '2026-11-20', due: '2026-11-23',
+    text: '1. Повторите фразовые глаголы из unit 2.\n2. Выполните интерактивное задание ниже — 4 упражнения.\n3. Напишите 5 предложений с любыми тремя фразовыми глаголами и прикрепите фото или файл.',
+    links: 'https://quizlet.com\nhttps://wordwall.net',
+    audio: '',
+    interactive: 'https://nadsol43-dot.github.io/students-kit-1/'
+  };
+
+  /* ---------- вспомогательное ---------- */
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+    });
+  }
+  function jsonp(params) {
+    return new Promise(function (resolve, reject) {
+      var name = 'hwcb' + Date.now() + Math.floor(Math.random() * 100000);
+      var url = CFG.api + (CFG.api.indexOf('?') < 0 ? '?' : '&') +
+                new URLSearchParams(params).toString() + '&callback=' + name;
+      var s = document.createElement('script');
+      var timer = setTimeout(function () { done(); reject(new Error('нет ответа от сервера')); }, 20000);
+      function done() { clearTimeout(timer); delete window[name]; if (s.parentNode) s.parentNode.removeChild(s); }
+      window[name] = function (data) { done(); resolve(data); };
+      s.onerror = function () { done(); reject(new Error('не удалось связаться с сервером')); };
+      s.src = url;
+      document.body.appendChild(s);
+    });
+  }
+  function prettyDate(iso) {
+    if (!iso) return '';
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+    return m ? m[3] + '.' + m[2] + '.' + m[1] : iso;
+  }
+
+  /* ---------- загрузка задания ---------- */
+  function load() {
+    var id = new URLSearchParams(location.search).get('hw') || '';
+    $('pageSub').textContent = CFG.teacher ? CFG.teacher : '';
+
+    if (!CFG.api) {
+      HW = DEMO;
+      $('notice').innerHTML = '<div class="err"><b>Это демонстрация.</b> Система ещё не подключена к ' +
+        'таблице учителя — ниже показано, как выглядит реальное домашнее задание. ' +
+        'Чтобы включить, заполните <code>config.js</code> (см. 01-НАСТРОЙКА.md).</div>';
+      render();
+      return;
+    }
+    jsonp({action: 'homework', id: id}).then(function (data) {
+      if (!data || !data.ok) throw new Error((data && data.error) || 'задание не найдено');
+      HW = data.homework;
+      render();
+    }).catch(function (e) {
+      $('pageSub').textContent = '';
+      $('notice').innerHTML = '<div class="err">Не удалось загрузить задание: ' + esc(e.message) +
+        '.<br>Обновите страницу или напишите учителю.</div>';
+    });
+  }
+
+  /* ---------- показ задания ---------- */
+  function render() {
+    var h = HW;
+    document.title = h.title || 'Домашнее задание';
+    $('pageSub').textContent = (CFG.teacher ? CFG.teacher + ' · ' : '') + 'домашнее задание';
+
+    var badges = [];
+    if (h.grade) badges.push('<span class="badge">' + esc(h.grade) + '</span>');
+    if (h.lessonDate) badges.push('<span class="badge">урок ' + esc(prettyDate(h.lessonDate)) + '</span>');
+    if (h.due) badges.push('<span class="badge due">сдать до ' + esc(prettyDate(h.due)) + '</span>');
+
+    var links = (h.links || '').split(/[\s,]+/).filter(function (u) { return /^https?:\/\//.test(u); });
+    var linksHtml = links.length
+      ? '<div class="links">' + links.map(function (u, i) {
+          return '<a href="' + esc(u) + '" target="_blank" rel="noopener">Открыть ' + (i + 1) + '</a>';
+        }).join('') + '</div>' : '';
+
+    var audioHtml = h.audio
+      ? '<audio controls preload="none" src="' + esc(h.audio) + '"></audio>' : '';
+
+    var frameHtml = h.interactive
+      ? '<div class="flex" style="margin:14px 0 6px"><b style="font-size:16px">Интерактивное задание</b>' +
+        '<a class="muted" href="' + esc(h.interactive) + '" target="_blank" rel="noopener">открыть отдельно ↗</a></div>' +
+        '<div class="frame"><iframe id="kit" src="' + esc(h.interactive) +
+        '" title="Интерактивное задание" loading="lazy"></iframe></div>'
+      : '';
+
+    $('hw').innerHTML =
+      '<div class="card">' +
+        '<h2>' + esc(h.title) + '</h2>' +
+        '<div class="badges">' + badges.join('') + '</div>' +
+        (h.text ? '<div class="task">' + esc(h.text) + '</div>' : '') +
+        linksHtml + audioHtml + frameHtml +
+      '</div>';
+
+    $('submitCard').style.display = '';
+    var saved = '';
+    try { saved = localStorage.getItem('hw_student_name') || ''; } catch (e) {}
+    if (saved) $('name').value = saved;
+  }
+
+  /* ---------- балл из интерактивного задания ---------- */
+  function readScore() {
+    var f = $('kit');
+    if (!f) return '';
+    try {
+      var d = f.contentDocument;
+      if (!d) return '';
+      var sub = d.querySelector('.bar .stat') || d.querySelector('.stat');
+      var txt = sub ? sub.textContent : '';
+      var m = /(\d+)\s*\/\s*(\d+)/.exec(txt);
+      if (m) return m[1] + ' / ' + m[2];
+      var one = d.querySelector('.score');
+      if (one) {
+        var m2 = /(\d+)\s*\/\s*(\d+)/.exec(one.textContent);
+        if (m2) return m2[1] + ' / ' + m2[2];
+      }
+    } catch (e) {}
+    return '';
+  }
+
+  /* ---------- отправка ---------- */
+  function fileToB64(file, cb, onerr) {
+    var r = new FileReader();
+    r.onload = function () { cb(String(r.result).split(',')[1] || ''); };
+    r.onerror = onerr;
+    r.readAsDataURL(file);
+  }
+
+  function send() {
+    var name = $('name').value.trim();
+    var status = $('sendStatus');
+    if (!name) { $('name').focus(); status.textContent = 'Впишите имя и фамилию'; return; }
+
+    var auto = readScore();
+    if (auto && !$('score').value.trim()) $('score').value = auto;
+
+    var file = $('file').files[0];
+    if (file && file.size > 6 * 1024 * 1024) {
+      status.textContent = '';
+      $('result').innerHTML = '<div class="err">Файл больше 6 МБ. Сожмите его или пришлите учителю ' +
+        'в мессенджер, а здесь нажмите «Сдать работу» без файла.</div>';
+      return;
+    }
+
+    try { localStorage.setItem('hw_student_name', name); } catch (e) {}
+    $('send').disabled = true;
+    status.textContent = 'Отправляем…';
+
+    var payload = {
+      hwId: HW.id, hwTitle: HW.title, due: HW.due,
+      student: name, score: $('score').value.trim(),
+      answer: $('answer').value.trim()
+    };
+
+    function finish(err) {
+      $('send').disabled = false;
+      status.textContent = '';
+      if (err) {
+        $('result').innerHTML = '<div class="err">Не получилось отправить: ' + esc(err) +
+          '<br>Проверьте интернет и нажмите кнопку ещё раз. Если не выходит — пришлите работу учителю ' +
+          'в мессенджер.</div>';
+        return;
+      }
+      $('result').innerHTML = '<div class="ok"><b>Работа отправлена ✓</b><br>' +
+        'Учитель увидит её в своей таблице. Можно закрывать страницу.<br>' +
+        (payload.score ? '<br>Ваш балл за интерактивное задание: <b>' + esc(payload.score) + '</b>' : '') +
+        (file ? '<br>Файл приложен: ' + esc(file.name) : '') + '</div>';
+      $('answer').value = '';
+      $('file').value = '';
+    }
+
+    if (!CFG.api) {   // демо-режим: ничего не отправляем
+      setTimeout(function () { finish(null); }, 600);
+      return;
+    }
+
+    function post() {
+      fetch(CFG.api, {
+        method: 'POST', mode: 'no-cors',
+        headers: {'Content-Type': 'text/plain;charset=utf-8'},
+        body: JSON.stringify(payload)
+      }).then(function () { finish(null); }).catch(function (e) { finish(e.message); });
+    }
+
+    if (file) {
+      fileToB64(file, function (b64) {
+        payload.fileName = file.name;
+        payload.fileMime = file.type || 'application/octet-stream';
+        payload.fileB64 = b64;
+        post();
+      }, function () { finish('не удалось прочитать файл'); });
+    } else {
+      post();
+    }
+  }
+
+  /* ---------- события ---------- */
+  $('send').addEventListener('click', send);
+  document.addEventListener('click', function (e) {
+    if (e.target && e.target.id === 'kit') { /* клик по iframe — просто даём работать */ }
+  });
+  var f = document.getElementById('kit');
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      var s = readScore();
+      if (s && !$('score').value.trim()) {
+        $('score').value = s;
+        $('scoreHint').textContent = 'Балл взят из интерактивного задания автоматически. Можно исправить.';
+      }
+    }, 1500);
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>

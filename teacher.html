@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14584a">
+<title>Кабинет учителя — домашние задания</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap wide">
+
+  <h1>Кабинет учителя</h1>
+  <div class="sub" id="sub">Домашние задания и работы учеников</div>
+
+  <!-- вход -->
+  <div class="card" id="gate">
+    <h2>Вход</h2>
+    <div class="hint">Введите пароль, который вы указали в скрипте (переменная <code>KEY</code>).
+      Он запомнится в этом браузере.</div>
+    <div class="row2" style="align-items:end;margin-top:10px">
+      <div>
+        <label for="key">Пароль учителя</label>
+        <input type="password" id="key" placeholder="ваш пароль">
+      </div>
+      <div><button class="primary" id="enter">Войти</button></div>
+    </div>
+    <div id="gateMsg"></div>
+  </div>
+
+  <!-- основное -->
+  <div id="main" style="display:none">
+    <div class="tabs">
+      <button data-tab="hw" class="on">Домашние задания</button>
+      <button data-tab="work">Работы учеников</button>
+      <button data-tab="link">Ссылка для учеников</button>
+      <button class="small" id="reload" style="margin-left:auto">Обновить</button>
+      <button class="small" id="logout">Выйти</button>
+    </div>
+
+    <!-- ДОМАШКИ -->
+    <div id="tab-hw">
+      <div class="card">
+        <h2>Новое домашнее задание</h2>
+        <div class="row2">
+          <div>
+            <label for="f_title">Название</label>
+            <input type="text" id="f_title" placeholder="Spotlight 8 · unit 2 · phrasal verbs">
+          </div>
+          <div>
+            <label for="f_grade">Класс / группа</label>
+            <input type="text" id="f_grade" placeholder="8 класс">
+          </div>
+        </div>
+        <div class="row2">
+          <div>
+            <label for="f_lesson">Дата урока</label>
+            <input type="date" id="f_lesson">
+          </div>
+          <div>
+            <label for="f_due">Сдать до</label>
+            <input type="date" id="f_due">
+          </div>
+        </div>
+        <label for="f_text">Текст задания</label>
+        <textarea id="f_text" placeholder="1. Повторите слова unit 2.&#10;2. Выполните интерактивное задание.&#10;3. Напишите 5 предложений и прикрепите фото."></textarea>
+        <div class="row2">
+          <div>
+            <label for="f_links">Ссылки (Quizlet, Wordwall — каждая с новой строки или через пробел)</label>
+            <textarea id="f_links" style="min-height:70px" placeholder="https://quizlet.com/...&#10;https://wordwall.net/..."></textarea>
+          </div>
+          <div>
+            <label for="f_audio">Ссылка на аудио (если есть)</label>
+            <input type="text" id="f_audio" placeholder="https://... .mp3">
+          </div>
+        </div>
+        <label for="f_inter">Ссылка на интерактивное задание (ваш кит на GitHub Pages)</label>
+        <input type="text" id="f_inter" placeholder="https://nadsol43-dot.github.io/students-kit-1/">
+        <div class="flex" style="margin-top:14px">
+          <label class="flex" style="margin:0;font-size:15px;color:var(--navy)">
+            <input type="checkbox" id="f_pub" checked style="width:auto"> сразу опубликовать
+          </label>
+          <button class="primary" id="addHw">Сохранить задание</button>
+          <span class="wait" id="addStatus"></span>
+        </div>
+        <div id="addMsg"></div>
+      </div>
+
+      <div class="card">
+        <h2>Все задания</h2>
+        <div id="hwTable" class="wait">Загрузка…</div>
+      </div>
+    </div>
+
+    <!-- РАБОТЫ -->
+    <div id="tab-work" style="display:none">
+      <div class="card">
+        <h2>Работы учеников</h2>
+        <div class="flex" style="margin-bottom:10px">
+          <input type="text" id="filter" placeholder="фильтр: имя ученика или название задания" style="max-width:340px">
+          <button class="small" id="csv">Скачать в Excel (CSV)</button>
+          <span class="muted" id="count"></span>
+        </div>
+        <div id="workTable" class="wait">Загрузка…</div>
+      </div>
+    </div>
+
+    <!-- ССЫЛКА -->
+    <div id="tab-link" style="display:none">
+      <div class="card">
+        <h2>Ссылка для учеников</h2>
+        <div class="hint">Эту ссылку отправляйте ученикам в мессенджер. Открывается с телефона и компьютера.</div>
+        <div class="flex" style="margin-top:10px">
+          <input type="text" id="studentLink" readonly style="max-width:520px">
+          <button class="small" id="copyLink">Скопировать</button>
+        </div>
+        <div class="hint" style="margin-top:14px">
+          <b>Как это работает.</b> Ученик открывает ссылку → видит последнее опубликованное задание
+          (или то, номер которого вы дали: <code>…?hw=3</code>) → выполняет интерактив → вписывает имя,
+          при необходимости прикрепляет фото/аудио → нажимает «Сдать работу».
+          Работа сразу появляется на вкладке «Работы учеников», файл сохраняется на ваш Google Диск.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>Кабинет учителя · страница видна только с паролем</footer>
+</div>
+
+<script src="config.js"></script>
+<script>
+(function () {
+  var CFG = window.HW_CONFIG || {api: ''};
+  var $ = function (id) { return document.getElementById(id); };
+  var KEY = '';
+  var RESULTS = [], HOMEWORK = [];
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+    });
+  }
+  function jsonp(params) {
+    return new Promise(function (resolve, reject) {
+      var name = 'hwcb' + Date.now() + Math.floor(Math.random() * 100000);
+      var url = CFG.api + (CFG.api.indexOf('?') < 0 ? '?' : '&') +
+                new URLSearchParams(params).toString() + '&callback=' + name;
+      var s = document.createElement('script');
+      var timer = setTimeout(function () { done(); reject(new Error('сервер не ответил')); }, 20000);
+      function done() { clearTimeout(timer); delete window[name]; if (s.parentNode) s.parentNode.removeChild(s); }
+      window[name] = function (d) { done(); resolve(d); };
+      s.onerror = function () { done(); reject(new Error('нет связи с сервером')); };
+      s.src = url; document.body.appendChild(s);
+    });
+  }
+
+  /* ---------- вход ---------- */
+  function showMain() {
+    $('gate').style.display = 'none';
+    $('main').style.display = '';
+    $('studentLink').value = location.origin + location.pathname.replace(/teacher\.html$/, '');
+    loadAll();
+  }
+  $('enter').addEventListener('click', function () {
+    var k = $('key').value.trim();
+    if (!k) return ($('gateMsg').innerHTML = '<div class="err">Введите пароль</div>');
+    if (!CFG.api) return ($('gateMsg').innerHTML =
+      '<div class="err">Система ещё не подключена: заполните <code>api</code> в файле <code>config.js</code> ' +
+      '(см. 01-НАСТРОЙКА.md).</div>');
+    KEY = k;
+    try { localStorage.setItem('hw_teacher_key', k); } catch (e) {}
+    jsonp({action: 'results', key: k}).then(function (d) {
+      if (!d.ok) throw new Error(d.error || 'неверный пароль');
+      showMain();
+    }).catch(function (e) {
+      $('gateMsg').innerHTML = '<div class="err">' + esc(e.message) + '</div>';
+    });
+  });
+  $('logout').addEventListener('click', function () {
+    try { localStorage.removeItem('hw_teacher_key'); } catch (e) {}
+    location.reload();
+  });
+
+  /* ---------- вкладки ---------- */
+  document.querySelectorAll('.tabs [data-tab]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.tabs [data-tab]').forEach(function (x) { x.classList.remove('on'); });
+      b.classList.add('on');
+      ['hw', 'work', 'link'].forEach(function (t) { $('tab-' + t).style.display = 'none'; });
+      $('tab-' + b.dataset.tab).style.display = '';
+    });
+  });
+
+  /* ---------- загрузка данных ---------- */
+  function loadAll() {
+    jsonp({action: 'list', key: KEY}).then(function (d) {
+      if (!d.ok) throw new Error(d.error);
+      HOMEWORK = d.rows;
+      renderHw();
+    }).catch(errHw);
+    jsonp({action: 'results', key: KEY}).then(function (d) {
+      if (!d.ok) throw new Error(d.error);
+      RESULTS = d.rows;
+      renderWork();
+    }).catch(errWork);
+  }
+  function errHw(e) { $('hwTable').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
+  function errWork(e) { $('workTable').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
+
+  function renderHw() {
+    if (!HOMEWORK.length) { $('hwTable').innerHTML = '<div class="wait">Пока нет ни одного задания. Добавьте первое выше.</div>'; return; }
+    var rows = HOMEWORK.map(function (h) {
+      var subs = RESULTS.filter(function (r) { return String(r.hwId) === String(h.id); }).length;
+      return '<tr>' +
+        '<td>' + esc(h.id) + '</td>' +
+        '<td>' + (h.published ? '✅' : '—') + '</td>' +
+        '<td><b>' + esc(h.title) + '</b></td>' +
+        '<td>' + esc(h.grade) + '</td>' +
+        '<td>' + esc(h.lessonDate) + '</td>' +
+        '<td>' + esc(h.due) + '</td>' +
+        '<td>' + subs + '</td>' +
+        '<td>' + (h.interactive ? '<a href="' + esc(h.interactive) + '" target="_blank" rel="noopener">кит ↗</a>' : '') + '</td>' +
+        '</tr>';
+    }).join('');
+    $('hwTable').innerHTML = '<table><thead><tr><th>№</th><th>опубл.</th><th>название</th>' +
+      '<th>класс</th><th>урок</th><th>сдать до</th><th>работ</th><th>интерактив</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table>';
+  }
+
+  function renderWork() {
+    var q = ($('filter').value || '').toLowerCase();
+    var list = RESULTS.filter(function (r) {
+      return !q || (r.student + ' ' + r.hw).toLowerCase().indexOf(q) >= 0;
+    });
+    $('count').textContent = 'работ: ' + list.length + ' из ' + RESULTS.length;
+    if (!list.length) { $('workTable').innerHTML = '<div class="wait">Пока никто не сдал — или ничего не найдено по фильтру.</div>'; return; }
+    var rows = list.map(function (r, i) {
+      var late = /опоздан/.test(r.status);
+      return '<tr>' +
+        '<td class="muted">' + esc(r.when) + '</td>' +
+        '<td><b>' + esc(r.student) + '</b></td>' +
+        '<td>' + esc(r.hw) + '</td>' +
+        '<td class="score">' + esc(r.score || '—') + '</td>' +
+        '<td>' + (late ? '<span class="badge late">опоздал</span>' : '<span class="badge">' + esc(r.status) + '</span>') + '</td>' +
+        '<td style="max-width:260px">' + (r.answer ? esc(r.answer).slice(0, 400) : '<span class="muted">—</span>') + '</td>' +
+        '<td>' + (r.file ? '<a href="' + esc(r.file) + '" target="_blank" rel="noopener">файл ↗</a>' : '<span class="muted">—</span>') + '</td>' +
+        '<td style="min-width:200px">' +
+          '<input type="text" data-c="' + i + '" value="' + esc(r.comment || '') + '" placeholder="комментарий ученику" style="font-size:14px;padding:6px 8px">' +
+          '<button class="small" data-save="' + i + '" style="margin-top:5px">сохранить</button>' +
+        '</td>' +
+        '</tr>';
+    }).join('');
+    $('workTable').innerHTML = '<div style="overflow:auto"><table><thead><tr><th>когда</th><th>ученик</th>' +
+      '<th>задание</th><th>балл</th><th>статус</th><th>ответ</th><th>файл</th><th>комментарий</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+
+    $('workTable').querySelectorAll('[data-save]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var i = +btn.dataset.save, r = list[i];
+        var inp = $('workTable').querySelector('[data-c="' + i + '"]');
+        jsonp({action: 'comment', key: KEY, when: r.when, student: r.student,
+               hwId: r.hwId, comment: inp.value}).then(function (d) {
+          btn.textContent = d.ok ? 'сохранено ✓' : 'ошибка';
+          setTimeout(function () { btn.textContent = 'сохранить'; }, 2500);
+        }).catch(function () { btn.textContent = 'нет связи'; });
+      });
+    });
+  }
+  $('filter').addEventListener('input', renderWork);
+
+  /* ---------- добавление задания ---------- */
+  $('addHw').addEventListener('click', function () {
+    var t = $('f_title').value.trim();
+    if (!t) { $('addMsg').innerHTML = '<div class="err">Впишите название задания.</div>'; return; }
+    if ($('f_text').value.length > 1500) {
+      $('addMsg').innerHTML = '<div class="err">Текст задания длинноват для одного запроса ' +
+        '(' + $('f_text').value.length + ' символов, максимум 1500). Сократите текст.</div>';
+      return;
+    }
+    $('addStatus').textContent = 'Сохраняем…';
+    jsonp({
+      action: 'addHomework', key: KEY,
+      title: t, grade: $('f_grade').value, lessonDate: $('f_lesson').value,
+      due: $('f_due').value, text: $('f_text').value, links: $('f_links').value,
+      audio: $('f_audio').value, interactive: $('f_inter').value,
+      published: $('f_pub').checked ? 'да' : 'нет'
+    }).then(function (d) {
+      $('addStatus').textContent = '';
+      if (!d.ok) throw new Error(d.error || 'не сохранилось');
+      $('addMsg').innerHTML = '<div class="ok">Задание № ' + d.id + ' сохранено' +
+        ($('f_pub').checked ? ' и опубликовано' : ' (черновик)') + '.</div>';
+      ['f_title','f_grade','f_text','f_links','f_audio','f_inter'].forEach(function (id) { $(id).value = ''; });
+      loadAll();
+    }).catch(function (e) {
+      $('addStatus').textContent = '';
+      $('addMsg').innerHTML = '<div class="err">' + esc(e.message) + '</div>';
+    });
+  });
+
+  /* ---------- CSV ---------- */
+  $('csv').addEventListener('click', function () {
+    var head = ['когда', 'ученик', 'задание', 'балл', 'статус', 'ответ', 'файл', 'комментарий'];
+    var lines = [head.join(';')].concat(RESULTS.map(function (r) {
+      return [r.when, r.student, r.hw, r.score, r.status, r.answer, r.file, r.comment]
+        .map(function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }).join(';');
+    }));
+    var blob = new Blob(['\uFEFF' + lines.join('\r\n')], {type: 'text/csv;charset=utf-8'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'работы-учеников.csv';
+    a.click();
+  });
+
+  $('reload').addEventListener('click', loadAll);
+  $('copyLink').addEventListener('click', function () {
+    $('studentLink').select();
+    try { document.execCommand('copy'); } catch (e) {}
+  });
+
+  /* ---------- авто-вход, если пароль уже сохранён ---------- */
+  try {
+    var saved = localStorage.getItem('hw_teacher_key');
+    if (saved) { $('key').value = saved; $('enter').click(); }
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
