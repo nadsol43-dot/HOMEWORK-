@@ -123,8 +123,15 @@
       HW = data.homework;
       render();
     }).catch(function (e) {
+      var msg = String(e.message || '');
+      if (/Нет опубликованных/i.test(msg)) {
+        $('pageSub').textContent = '';
+        $('notice').innerHTML = '<div class="wait">Домашних заданий пока нет — учитель ещё не ' +
+          'опубликовал новое. Загляните позже или обновите страницу.</div>';
+        return;
+      }
       $('pageSub').textContent = '';
-      $('notice').innerHTML = '<div class="err">Не удалось загрузить задание: ' + esc(e.message) +
+      $('notice').innerHTML = '<div class="err">Не удалось загрузить задание: ' + esc(msg) +
         '.<br>Обновите страницу или напишите учителю.</div>';
     });
   }
@@ -149,12 +156,15 @@
     var audioHtml = h.audio
       ? '<audio controls preload="none" src="' + esc(h.audio) + '"></audio>' : '';
 
-    var frameHtml = h.interactive
-      ? '<div class="flex" style="margin:14px 0 6px"><b style="font-size:16px">Интерактивное задание</b>' +
-        '<a class="muted" href="' + esc(h.interactive) + '" target="_blank" rel="noopener">открыть отдельно ↗</a></div>' +
-        '<div class="frame"><iframe id="kit" src="' + esc(h.interactive) +
-        '" title="Интерактивное задание" loading="lazy"></iframe></div>'
-      : '';
+    var kits = String(h.interactive || '').split(/[\s,]+/)
+      .filter(function (u) { return /^https?:\/\//.test(u); });
+    var frameHtml = kits.map(function (u, i) {
+      var label = kits.length > 1 ? 'Интерактивное задание ' + (i + 1) : 'Интерактивное задание';
+      return '<div class="flex" style="margin:14px 0 6px"><b style="font-size:16px">' + label + '</b>' +
+        '<a class="muted" href="' + esc(u) + '" target="_blank" rel="noopener">открыть отдельно ↗</a></div>' +
+        '<div class="frame"><iframe id="' + (i === 0 ? 'kit' : 'kit' + (i + 1)) + '" src="' + esc(u) +
+        '" title="' + label + '" loading="lazy"></iframe></div>';
+    }).join('');
 
     $('hw').innerHTML =
       '<div class="card">' +
@@ -172,7 +182,7 @@
 
   /* ---------- балл из интерактивного задания ---------- */
   function readScore() {
-    var f = $('kit');
+    var f = $('kit');   // первый интерактив
     if (!f) return '';
     try {
       var d = f.contentDocument;

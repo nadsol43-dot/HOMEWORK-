@@ -38,6 +38,10 @@ button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--lin
 button.primary{background:var(--mint);border-color:var(--mint);color:#fff}
 button.small{font-size:14px;padding:6px 11px}
 button:disabled{opacity:.55;cursor:default}
+button.mini{font-size:13px;padding:4px 9px;border-radius:8px;white-space:nowrap}
+button.mini.danger{color:#b3261e;border-color:#f0c9c5}
+button.mini.danger:hover{background:#fdeceb}
+td.acts{white-space:nowrap}
 
 label{display:block;font-size:14.5px;font-weight:700;color:var(--grey);margin:12px 0 5px}
 input[type=text],input[type=date],input[type=password],textarea,select{

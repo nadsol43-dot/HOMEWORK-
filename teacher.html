@@ -74,8 +74,8 @@
             <input type="text" id="f_audio" placeholder="https://... .mp3">
           </div>
         </div>
-        <label for="f_inter">Ссылка на интерактивное задание (ваш кит на GitHub Pages)</label>
-        <input type="text" id="f_inter" placeholder="https://nadsol43-dot.github.io/students-kit-1/">
+        <label for="f_inter">Ссылки на интерактивные задания — можно несколько, каждая с новой строки</label>
+        <textarea id="f_inter" style="min-height:70px" placeholder="https://nadsol43-dot.github.io/students-kit-1/&#10;https://nadsol43-dot.github.io/students-kit-2/"></textarea>
         <div class="flex" style="margin-top:14px">
           <label class="flex" style="margin:0;font-size:15px;color:var(--navy)">
             <input type="checkbox" id="f_pub" checked style="width:auto"> сразу опубликовать
@@ -221,6 +221,16 @@
   function errHw(e) { $('hwTable').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
   function errWork(e) { $('workTable').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
 
+  // Несколько ссылок на интерактив -> «кит 1 ↗ кит 2 ↗»
+  function kitLinks(str) {
+    var urls = String(str || '').split(/[\s,]+/).filter(function (u) { return /^https?:\/\//.test(u); });
+    if (!urls.length) return '';
+    return urls.map(function (u, i) {
+      return '<a href="' + esc(u) + '" target="_blank" rel="noopener">кит' +
+             (urls.length > 1 ? ' ' + (i + 1) : '') + ' ↗</a>';
+    }).join(' ');
+  }
+
   function renderHw() {
     if (!HOMEWORK.length) { $('hwTable').innerHTML = '<div class="wait">Пока нет ни одного задания. Добавьте первое выше.</div>'; return; }
     var rows = HOMEWORK.map(function (h) {
@@ -233,12 +243,51 @@
         '<td>' + esc(h.lessonDate) + '</td>' +
         '<td>' + esc(h.due) + '</td>' +
         '<td>' + subs + '</td>' +
-        '<td>' + (h.interactive ? '<a href="' + esc(h.interactive) + '" target="_blank" rel="noopener">кит ↗</a>' : '') + '</td>' +
+        '<td>' + kitLinks(h.interactive) + '</td>' +
+        '<td class="acts">' +
+          '<button class="mini" data-pub="' + esc(h.id) + '" data-cur="' + (h.published ? 'да' : 'нет') + '">' +
+            (h.published ? 'скрыть' : 'опубликовать') + '</button> ' +
+          '<button class="mini danger" data-del="' + esc(h.id) + '">удалить</button>' +
+        '</td>' +
         '</tr>';
     }).join('');
     $('hwTable').innerHTML = '<table><thead><tr><th>№</th><th>опубл.</th><th>название</th>' +
-      '<th>класс</th><th>урок</th><th>сдать до</th><th>работ</th><th>интерактив</th></tr></thead>' +
+      '<th>класс</th><th>урок</th><th>сдать до</th><th>работ</th><th>интерактив</th><th>действия</th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table>';
+
+    $('hwTable').querySelectorAll('[data-pub]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var cur = btn.getAttribute('data-cur') === 'да';
+        btn.disabled = true;
+        btn.textContent = '…';
+        apiGet({action: 'setPublished', key: KEY, id: btn.getAttribute('data-pub'),
+                published: cur ? 'нет' : 'да'}).then(function (d) {
+          if (!d.ok) throw new Error(d.error || 'не получилось');
+          loadAll();
+        }).catch(function (e) {
+          btn.disabled = false;
+          btn.textContent = 'ошибка';
+          alert(e.message);
+        });
+      });
+    });
+
+    $('hwTable').querySelectorAll('[data-del]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-del');
+        if (!confirm('Удалить задание № ' + id + '?\n\nРаботы учеников, уже сданные по нему, останутся в «Работах».')) return;
+        btn.disabled = true;
+        btn.textContent = '…';
+        apiGet({action: 'deleteHomework', key: KEY, id: id}).then(function (d) {
+          if (!d.ok) throw new Error(d.error || 'не получилось');
+          loadAll();
+        }).catch(function (e) {
+          btn.disabled = false;
+          btn.textContent = 'удалить';
+          alert(e.message);
+        });
+      });
+    });
   }
 
   function renderWork() {
