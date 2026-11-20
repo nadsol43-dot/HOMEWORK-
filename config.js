@@ -3,7 +3,7 @@
 window.HW_CONFIG = {
 
   // Адрес веб-приложения Google Apps Script (получен при развёртывании)
-  api: 'https://script.google.com/macros/s/AKfycbzayAbtbklMpDVIg64zs9hYy8Niy5lDxo5M_UbZO2bE_YTQ1UXrB85WxXUO46xk7fY4/exec',
+  api: 'https://script.google.com/macros/s/AKfycbxfK4xiDkFZuY9s4974wGF1AhIfLMMJ1sr8b42HDa2kR73bmhkCh7J-6N54ur4pIA0k/exec',
 
   // Что показывать ученику в шапке страницы
   title: 'Домашние задания',
