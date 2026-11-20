@@ -85,6 +85,20 @@
       document.body.appendChild(s);
     });
   }
+
+  /* Спросить данные у сервера: сначала обычным запросом (fetch),
+     при неудаче — запасным способом через JSONP. */
+  function apiGet(params) {
+    var url = CFG.api + (CFG.api.indexOf('?') < 0 ? '?' : '&') +
+              new URLSearchParams(params).toString();
+    if (typeof fetch !== 'function') return jsonp(params);
+    return fetch(url, {mode: 'cors', cache: 'no-store'})
+      .then(function (r) {
+        if (!r.ok) throw new Error('ответ сервера ' + r.status);
+        return r.json();
+      })
+      .catch(function () { return jsonp(params); });
+  }
   function prettyDate(iso) {
     if (!iso) return '';
     var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
@@ -104,7 +118,7 @@
       render();
       return;
     }
-    jsonp({action: 'homework', id: id}).then(function (data) {
+    apiGet({action: 'homework', id: id}).then(function (data) {
       if (!data || !data.ok) throw new Error((data && data.error) || 'задание не найдено');
       HW = data.homework;
       render();

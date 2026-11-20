@@ -154,6 +154,20 @@
     });
   }
 
+  /* Спросить данные у сервера: сначала обычным запросом (fetch),
+     при неудаче — запасным способом через JSONP. */
+  function apiGet(params) {
+    var url = CFG.api + (CFG.api.indexOf('?') < 0 ? '?' : '&') +
+              new URLSearchParams(params).toString();
+    if (typeof fetch !== 'function') return jsonp(params);
+    return fetch(url, {mode: 'cors', cache: 'no-store'})
+      .then(function (r) {
+        if (!r.ok) throw new Error('ответ сервера ' + r.status);
+        return r.json();
+      })
+      .catch(function () { return jsonp(params); });
+  }
+
   /* ---------- вход ---------- */
   function showMain() {
     $('gate').style.display = 'none';
@@ -169,7 +183,7 @@
       '(см. 01-НАСТРОЙКА.md).</div>');
     KEY = k;
     try { localStorage.setItem('hw_teacher_key', k); } catch (e) {}
-    jsonp({action: 'results', key: k}).then(function (d) {
+    apiGet({action: 'results', key: k}).then(function (d) {
       if (!d.ok) throw new Error(d.error || 'неверный пароль');
       showMain();
     }).catch(function (e) {
@@ -193,12 +207,12 @@
 
   /* ---------- загрузка данных ---------- */
   function loadAll() {
-    jsonp({action: 'list', key: KEY}).then(function (d) {
+    apiGet({action: 'list', key: KEY}).then(function (d) {
       if (!d.ok) throw new Error(d.error);
       HOMEWORK = d.rows;
       renderHw();
     }).catch(errHw);
-    jsonp({action: 'results', key: KEY}).then(function (d) {
+    apiGet({action: 'results', key: KEY}).then(function (d) {
       if (!d.ok) throw new Error(d.error);
       RESULTS = d.rows;
       renderWork();
@@ -258,7 +272,7 @@
       btn.addEventListener('click', function () {
         var i = +btn.dataset.save, r = list[i];
         var inp = $('workTable').querySelector('[data-c="' + i + '"]');
-        jsonp({action: 'comment', key: KEY, when: r.when, student: r.student,
+        apiGet({action: 'comment', key: KEY, when: r.when, student: r.student,
                hwId: r.hwId, comment: inp.value}).then(function (d) {
           btn.textContent = d.ok ? 'сохранено ✓' : 'ошибка';
           setTimeout(function () { btn.textContent = 'сохранить'; }, 2500);
@@ -278,7 +292,7 @@
       return;
     }
     $('addStatus').textContent = 'Сохраняем…';
-    jsonp({
+    apiGet({
       action: 'addHomework', key: KEY,
       title: t, grade: $('f_grade').value, lessonDate: $('f_lesson').value,
       due: $('f_due').value, text: $('f_text').value, links: $('f_links').value,
